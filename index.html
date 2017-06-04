@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>websocket 测试</title>
+    <link rel="stylesheet" type="text/css" href="./reset.css" />
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+    <style>
+
+    </style>
+</head>
+
+<body>
+    <div id="loginbox">
+        <div class="login-box">
+            请先输入你在聊天室的昵称
+            <br/>
+            <br/>
+            <input type="text" placeholder="请输入用户名" id="username" name="username" />
+            <input type="button" value="提交" id="loginSubmit" />
+        </div>
+    </div>
+    <div id="chatbox" class="chatbox">
+        <div class="chatbox-title">
+            <div class="chatbox-con">
+                <span class="chatbox-left">Websocket多人聊天室</span>
+                <span class="chatbox-mid"><span id="showusername"></span> |
+                <a href="javascript:;" class="chatbox-right" id="logout">退出</a></span>
+            </div>
+        </div>
+        <div id="doc">
+            <div id="chat">
+                <div id="message" class="message">
+                    <div id="onlinecount" class="onlinecount">
+                    </div>
+                </div>
+                <div class="input-box">
+                    <div class="input">
+                        <input type="text" maxlength="140" placeholder="请输入聊天内容，按enter提交" id="content" name="content">
+                    </div>
+                    <div class="action">
+                        <button type="button" id="mjr_send">提交</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let $ = (selector) => document.querySelector(selector);
+        //通过“回车”提交用户名
+        $('#username').onkeydown = function(event) {
+            if (event.keyCode === 13) {
+                login()
+            }
+        }
+
+        $('#loginSubmit').addEventListener('click', () => {
+            login();
+        })
+        let login = () => {
+                this.username = $('#username').value;
+                this.userid = new Date().getTime() + "" + Math.floor(Math.random() * 899 + 100);
+                if (username !== '') {
+                    $('#loginbox').style.display = 'none';
+                    $('#chatbox').style.display = 'block';
+                    $("#showusername").innerHTML = this.username;
+                    window.scrollTo(0, $('#message').clientHeight);
+                    socketOptions();
+                } else {
+                    alert('不能输入空用户名')
+                }
+            }
+            // 发送消息操作
+        $('#mjr_send').addEventListener('click', () => {
+            submit();
+        });
+        $('#content').onkeydown = function(event) {
+            if (event.keyCode === 13) {
+                submit()
+            }
+        }
+        let submit = () => {
+                let content = $("#content").value;
+                if (content != '') {
+                    let obj = {
+                        userid: this.userid,
+                        username: this.username,
+                        content: content
+                    };
+                    this.socket.emit('message', obj);
+                    $("#content").value = '';
+                } else {
+                    alert('不能发送空消息！');
+                }
+                return false;
+            }
+            //socket一些操作
+        let socketOptions = () => {
+            this.socket = io.connect('ws://localhost:9999');
+            //告知有用户登录
+            this.socket.emit('login', {
+                userid: this.userid,
+                username: this.username
+            });
+            //监听新用户登录
+            this.socket.on('login', (msg) => {
+                updateSysMsg(msg, 'login');
+            });
+            //监听用户退出
+            this.socket.on('logout', (msg) => {
+                updateSysMsg(msg, 'logout');
+            });
+            //监听用户消息
+            //监听消息发送
+            this.socket.on('message', (obj) => {
+                sendMessage(obj)
+            });
+        }
+
+        let sendMessage = (obj) => {
+            let isme = (obj.userid == this.userid) ? true : false;
+            let contentDiv = '<div>' + obj.content + '</div>';
+            let usernameDiv = '<span>' + obj.username + '</span>';
+
+            let section = document.createElement('section');
+            if (isme) {
+                section.className = 'user';
+                section.innerHTML = contentDiv + usernameDiv;
+            } else {
+                section.className = 'service';
+                section.innerHTML = usernameDiv + contentDiv;
+            }
+            $('#message').appendChild(section);
+            window.scrollTo(0, $('#message').clientHeight);
+        }
+
+        //更新系统消息，本例中在用户加入、退出的时候调用
+        let updateSysMsg = (msg, action) => {
+                //当前在线用户列表
+                let onlineUsers = msg.onlineUsers;
+                //当前在线人数
+                let onlineCount = msg.onlineCount;
+                //新加入用户的信息
+                let user = msg.user;
+                //更新在线人数
+                let userhtml = '';
+                let separator = '';
+                for (key in onlineUsers) {
+                    if (onlineUsers.hasOwnProperty(key)) {
+                        userhtml += separator + onlineUsers[key];
+                        separator = '、';
+                    }
+                }
+                $("#onlinecount").innerHTML = '当前共有 ' + onlineCount + ' 人在线，在线列表：' + userhtml;
+                //添加系统消息
+                let html = '';
+                html += '<div class="msg-system">';
+                html += user.username;
+                html += (action == 'login') ? ' 加入了聊天室' : ' 退出了聊天室';
+                html += '</div>';
+                let section = document.createElement('section');
+                section.className = 'system J-mjrlinkWrap J-cutMsg';
+                section.innerHTML = html;
+                $('#message').appendChild(section);
+                window.scrollTo(0, $('#message').clientHeight);
+            }
+            //登出
+        $('#logout').addEventListener('click', () => {
+            location.reload();
+        })
+    </script>
+</body>
+
+</html>
